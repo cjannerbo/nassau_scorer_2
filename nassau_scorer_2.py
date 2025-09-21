@@ -37,7 +37,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def calculate_nine(holes, nine_name):
-    """Calculate points for a nine with the new scoring framework"""
+    """Calculate points for a nine with the corrected auto-press logic"""
     if not any(h is not None for h in holes):
         return {'points': 0, 'details': [], 'presses': []}
     
@@ -63,7 +63,7 @@ def calculate_nine(holes, nine_name):
             elif holes[hole_idx] == 'L':
                 running_score -= 1
             
-            # Check for press trigger
+            # Check for press trigger - allow triggers through hole 7 (so press can start on hole 8)
             if not bet['triggered'] and abs(running_score) >= 2 and hole_idx <= 6:
                 bet['triggered'] = True
                 press_start = hole_idx + 1
@@ -129,41 +129,45 @@ def calculate_nine(holes, nine_name):
         })
     
     # Check for auto-press on hole 9/18
-    auto_press_points = 0
+    # CORRECTED LOGIC: Auto-press triggers when the MOST RECENT bet is exactly ±1 going into final hole
     if holes[8] is not None:
-        last_bet = bets[-1]
-        if last_bet['start'] != 8:
-            last_bet_score_thru_8 = 0
-            for i in range(last_bet['start'], min(8, 9)):
-                if holes[i] is None:
-                    break
-                if holes[i] == 'W':
-                    last_bet_score_thru_8 += 1
-                elif holes[i] == 'L':
-                    last_bet_score_thru_8 -= 1
+        last_bet = bets[-1]  # Get the most recent (last) bet
+        
+        # Calculate the score of the last bet through hole 8
+        last_bet_score_thru_8 = 0
+        for i in range(last_bet['start'], min(8, 9)):
+            if holes[i] is None:
+                break
+            if holes[i] == 'W':
+                last_bet_score_thru_8 += 1
+            elif holes[i] == 'L':
+                last_bet_score_thru_8 -= 1
+        
+        # Auto-press triggers if exactly ±1 (regardless of whether other presses exist)
+        if abs(last_bet_score_thru_8) == 1:
+            auto_hole = 9 if 'Front' in nine_name else 18
+            if holes[8] == 'W':
+                auto_press_points = 1
+                auto_outcome = 'Won'
+                auto_result = '+'
+            elif holes[8] == 'L':
+                auto_press_points = -1
+                auto_outcome = 'Lost'
+                auto_result = '-'
+            else:
+                auto_press_points = 0
+                auto_outcome = 'Tied'
+                auto_result = '0'
             
-            # Auto-press if exactly 1 up or 1 down
-            if abs(last_bet_score_thru_8) == 1:
-                auto_hole = 9 if 'Front' in nine_name else 18
-                if holes[8] == 'W':
-                    auto_press_points = 1
-                    auto_outcome = 'Won'
-                elif holes[8] == 'L':
-                    auto_press_points = -1
-                    auto_outcome = 'Lost'
-                else:
-                    auto_press_points = 0
-                    auto_outcome = 'Tied'
-                
-                bet_points += auto_press_points
-                details.append({
-                    'bet': f'Auto-press',
-                    'holes': f"{auto_hole}",
-                    'results': '+' if holes[8] == 'W' else ('-' if holes[8] == 'L' else '0'),
-                    'score': auto_press_points,
-                    'outcome': auto_outcome,
-                    'points': auto_press_points
-                })
+            bet_points += auto_press_points
+            details.append({
+                'bet': 'Auto-press',
+                'holes': f"{auto_hole}",
+                'results': auto_result,
+                'score': auto_press_points,
+                'outcome': auto_outcome,
+                'points': auto_press_points
+            })
     
     total_points = total_holes + bet_points
     
@@ -357,7 +361,7 @@ with st.expander("📖 How to Use"):
     3. Record each hole result: + (Win), 0 (Tie), - (Loss)
     4. The app automatically:
        - Triggers presses when any bet reaches 2 up/down
-       - Adds auto-press on hole 9/18 if last bet is 1 up/down
+       - Adds auto-press on hole 9/18 if the MOST RECENT bet is exactly 1 up/down
        - Calculates all points and money
     5. Reset button clears all scores
     
@@ -372,7 +376,7 @@ with st.expander("📖 How to Use"):
     **Press Rules:**
     - A new press starts when any bet reaches 2 up or 2 down
     - Each press can trigger its own subsequent presses
-    - Auto-press on 9/18 only if the last active bet is exactly 1 up or 1 down
+    - Auto-press on 9/18 triggers when the MOST RECENT bet is exactly 1 up or 1 down
     
     **Example:**
     If you win 3 holes, lose 1 hole on the front 9 with 2 presses:
@@ -385,4 +389,4 @@ with st.expander("📖 How to Use"):
 
 # Footer
 st.markdown("---")
-st.markdown("<p style='text-align: center; color: gray;'>Nassau Golf Scorer - Two Down Auto Press with New Scoring Framework</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: gray;'>Nassau Golf Scorer - Two Down Auto Press with Corrected Auto-Press Logic</p>", unsafe_allow_html=True)
