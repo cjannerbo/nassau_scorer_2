@@ -133,9 +133,9 @@ def calculate_nine(holes, nine_name):
     if holes[8] is not None:
         last_bet = bets[-1]  # Get the most recent (last) bet
         
-        # Calculate the score of the last bet through hole 8
+        # Calculate the score of the last bet through hole 8 (before the final hole)
         last_bet_score_thru_8 = 0
-        for i in range(last_bet['start'], min(8, 9)):
+        for i in range(last_bet['start'], 8):  # Only through hole 8 (index 7)
             if holes[i] is None:
                 break
             if holes[i] == 'W':
